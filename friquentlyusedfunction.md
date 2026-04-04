@@ -1,0 +1,110 @@
+Column / Basic
+col
+lit
+expr
+when
+otherwise
+isnan
+isnull
+coalesce
+broadcast
+monotonically_increasing_id
+🔹 String functions
+upper
+lower
+trim
+ltrim
+rtrim
+concat
+concat_ws
+substring
+length
+regexp_replace
+regexp_extract
+split
+instr
+locate
+translate
+initcap
+🔹 Numeric functions
+abs
+round
+bround
+ceil
+floor
+sqrt
+pow
+exp
+log
+log10
+🔹 Date & Time
+current_date
+current_timestamp
+date_add
+date_sub
+datediff
+months_between
+to_date
+to_timestamp
+year
+month
+dayofmonth
+hour
+minute
+second
+🔹 Aggregations
+count
+countDistinct
+approx_count_distinct
+sum
+avg
+mean
+min
+max
+first
+last
+🔹 Window functions
+row_number
+rank
+dense_rank
+lag
+lead
+ntile
+cume_dist
+percent_rank
+🔹 Array functions
+array
+array_contains
+size
+explode
+explode_outer
+posexplode
+sort_array
+array_distinct
+array_union
+array_intersect
+🔹 Map functions
+create_map
+map_keys
+map_values
+map_from_arrays
+element_at
+🔹 Struct / JSON
+struct
+to_json
+from_json
+get_json_object
+json_tuple
+🔹 DataFrame operations
+select
+selectExpr
+withColumn
+withColumnRenamed
+drop
+filter
+where
+groupBy
+agg
+join
+orderBy
+limit
