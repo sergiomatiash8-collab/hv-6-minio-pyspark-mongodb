@@ -1,0 +1,3 @@
+data/bronze/*.csv
+data/silver/*.parquet
+data/gold/*.parquet
