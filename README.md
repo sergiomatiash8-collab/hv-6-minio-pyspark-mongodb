@@ -20,53 +20,7 @@ Key Features:
 
 
 Architecture
-┌─────────────────────────────────────────────────────────────────┐
-│                        LOCAL MACHINE (HOST)                      │
-│                                                                  │
-│  ┌──────────────────┐                                           │
-│  │  Bronze Layer    │                                           │
-│  │  data/bronze/    │                                           │
-│  │ amazon_reviews   │                                           │
-│  │    .csv (483mb)  │                                           │
-│  └────────┬─────────┘                                           │
-│           │                                                     │
-│           │ (1) Python reads CSV                                │
-│           ▼                                                     │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │         DOCKER NETWORK: spark-network                    │  │
-│  │                                                          │  │
-│  │  ┌──────────────────┐  ┌──────────────────┐             │  │
-│  │  │     MinIO        │  │     MongoDB      │             │  │
-│  │  │ (S3 Storage)     │  │  (Data Store)    │             │  │
-│  │  │                  │  │                  │             │  │
-│  │  │ :9000 console    │  │ :27017           │             │  │
-│  │  │ :9001 API        │  │ admin/password   │             │  │
-│  │  │                  │  │                  │             │  │
-│  │  │ Buckets:         │  │ Collections:     │             │  │
-│  │  │ - silver/        │  │ - products_agg   │             │  │
-│  │  │(Parquet-10 mb)   │  │ - customers_agg  │             │  │
-│  │  │                  │  │ - monthly_agg    │             │  │
-│  │  └────────▲─────────┘  └────────▲─────────┘             │  │
-│  │           │                     │                       │  │
-│  │  ┌────────┴─────────────────────┴────────┐              │  │
-│  │  │                                       │              │  │
-│  │  │    Spark Container (jupyter/pyspark)  │              │  │
-│  │  │    silver_to_gold.py script           │              │  │
-│  │  │                                       │              │  │
-│  │  │  1. Read: s3a://silver/reviews.parquet│              │  │
-│  │  │  2. Clean: Remove NULLs               │              │  │
-│  │  │  3. Filter: verified_purchase = 1     │              │  │
-│  │  │  4. Aggregate (3 ways):               │              │  │
-│  │  │     - Per product aggregation         │              │  │
-│  │  │     - Per customer aggregation        │              │  │
-│  │  │     - Monthly per product trends      │              │  │
-│  │  │  5. Write to MongoDB collections      │              │  │
-│  │  │                                       │              │  │
-│  │  └───────────────────────────────────────┘              │  │
-│  │                                                         │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                               │
-└───────────────────────────────────────────────────────────────┘
+(screenshot)
 
 Project Structure
 HV_6_Minio_PySpark_MongoDB/
@@ -225,7 +179,7 @@ db.monthly_agg.find({
   product_id: "0486265250" 
 }).sort({ year: 1, month: 1 })
 
-🔧 Configuration
+Configuration
 .env File
 env# MinIO
 MINIO_ROOT_USER=minioadmin
