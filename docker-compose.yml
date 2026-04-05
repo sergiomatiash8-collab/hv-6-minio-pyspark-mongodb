@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   minio:
     image: minio/minio:latest
@@ -12,6 +10,8 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    networks:
+      - spark-network
 
   mongodb:
     image: mongo:latest
@@ -22,7 +22,30 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: password
     volumes:
       - mongodb_data:/data/db
+    networks:
+      - spark-network
+
+  spark:
+    image: jupyter/pyspark-notebook:latest
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    volumes:
+      - ./data:/data
+      - ./etl:/etl
+    networks:
+      - spark-network
+    depends_on:
+      - minio
+      - mongodb
+    command: sleep infinity
 
 volumes:
   minio_data:
   mongodb_data:
+
+networks:
+  spark-network:
+    driver: bridge

@@ -26,7 +26,8 @@ os.environ['PYSPARK_SUBMIT_ARGS'] = (
 # 4️⃣ Spark config
 conf = SparkConf()
 conf.setAppName("TestMinIO")
-conf.set("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262")
+conf.set("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.530")
+
 conf.set("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT)
 conf.set("spark.hadoop.fs.s3a.access.key", MINIO_USER)
 conf.set("spark.hadoop.fs.s3a.secret.key", MINIO_PASSWORD)
