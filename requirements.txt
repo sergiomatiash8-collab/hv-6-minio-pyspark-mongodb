@@ -1,0 +1,7 @@
+pyspark==3.4.1
+pandas
+pyarrow
+boto3
+pymongo
+python-dotenv
+pytest

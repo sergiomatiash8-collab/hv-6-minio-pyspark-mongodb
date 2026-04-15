@@ -42,6 +42,22 @@ services:
       - mongodb
     command: sleep infinity
 
+  # Додаємо твій додаток у ту ж мережу
+  app:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MONGO_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017
+    networks:
+      - spark-network
+    depends_on:
+      - minio
+      - mongodb
+
 volumes:
   minio_data:
   mongodb_data:
