@@ -1,4 +1,5 @@
-pyspark==3.4.1
+minio
+pyspark==3.3.4
 pandas
 pyarrow
 boto3
