@@ -10,11 +10,8 @@ from prometheus_client import start_http_server, Counter, Histogram
 from app.core.config import Config
 from app.infrastructure.spark_manager import SparkManager
 from app.infrastructure.mongodb_adapter import MongoDBAdapter
-# Оцей рядок ми виправили:
 from app.infrastructure.logging_config import configure_logging 
 from app.use_cases.silver_to_gold import SilverToGoldService
-
-# Далі решта коду...
 
 # Configure logging
 logger = configure_logging("INFO")
@@ -35,10 +32,10 @@ def main():
     logger.info("silver_to_gold_job_start")
     start_time = time.time()
 
-    # Start Prometheus metrics server (доступний на http://localhost:8000)
+    # КРОК 1: Запуск сервера метрик на 0.0.0.0 (важливо для Docker)
     try:
-        start_http_server(8000)
-        logger.info("metrics_server_started", port=8000)
+        start_http_server(8000, addr='0.0.0.0')
+        logger.info("metrics_server_started", port=8000, host='0.0.0.0')
     except Exception as e:
         logger.warning("metrics_server_failed", error=str(e))
 
@@ -46,7 +43,7 @@ def main():
     mongodb = None
 
     try:
-        # 1. Initialize Spark
+        # 1. Initialize Spark (використовує наш SparkManager з фіксами)
         spark = SparkManager.get_session("SilverToGoldApp", Config)
 
         # 2. Initialize MongoDB
@@ -59,8 +56,8 @@ def main():
         service = SilverToGoldService(spark, mongodb)
 
         # 4. Execute transformation
+        # Переконайся, що бакет 'gold' створено в MinIO!
         service.execute(
-            # Вказуємо ту саму назву, яку ми створили в попередньому скрипті
             input_path="s3a://silver/amazon_reviews.parquet", 
             output_path="s3a://gold/product_analytics.parquet"
         )
@@ -83,15 +80,15 @@ def main():
         raise
 
     finally:
-        # Cleanup - важливо для Docker, щоб не "вішали" сесії
+        # Cleanup
         if mongodb:
             mongodb.close()
         if spark:
             spark.stop()
             logger.info("spark_session_stopped")
         
-        # Даємо трохи часу метрикам "пролетіти", якщо скрипт працює в циклі
-        time.sleep(2)
+        # Даємо час Prometheus зняти фінальні метрики перед виходом
+        time.sleep(5)
 
 if __name__ == "__main__":
     main()

@@ -3,6 +3,7 @@ pyspark==3.4.1
 pandas==2.0.3
 pyarrow==12.0.1
 minio
+numpy==1.24.3
 
 # Database & Cloud
 boto3==1.28.25
