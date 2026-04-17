@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s      # Як часто збирати метрики (дефолт — 15с)
+  evaluation_interval: 15s  # Як часто перевіряти правила алертингу
+
+scrape_configs:
+  # 1. ETL Pipeline metrics (наш Python додаток)
+  - job_name: 'etl-pipeline'
+    static_configs:
+      - targets: ['app:8000']
+
+  # 2. Spark metrics (внутрішній стан Spark-сесії)
+  - job_name: 'spark'
+    static_configs:
+      - targets: ['spark:4040']
+
+  # 3. MinIO metrics (стан об'єктного сховища)
+  - job_name: 'minio'
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets: ['minio:9000']
+
+  # 4. MongoDB metrics (стан бази через експортер)
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']

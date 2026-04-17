@@ -1,43 +1,41 @@
-import sys
+import os
 from app.core.config import Config
 from app.infrastructure.minio_adapter import MinioAdapter
 from app.use_cases.bronze_to_silver import BronzeToSilverService
 
 def main():
+    # 1. Підключаємось до MinIO
+    adapter = MinioAdapter(
+        endpoint=Config.MINIO_ENDPOINT,
+        access_key=Config.MINIO_ACCESS_KEY,
+        secret_key=Config.MINIO_SECRET_KEY,
+        secure=Config.MINIO_SECURE
+    )
+
+    service = BronzeToSilverService(adapter)
+
+    # 2. Шлях саме до твого файлу (згідно зі скріншотом)
+    local_file = "data/bronze/amazon_reviews.csv" 
+    
+    if not os.path.exists(local_file):
+        print(f"❌ Помилка: Не бачу файл за шляхом {local_file}")
+        print("Перевір, чи ти запустив термінал саме в папці проєкту.")
+        return
+
     try:
-        print(">>> ЗАПУСК ПРОЦЕСУ: BRONZE TO SILVER <<<")
-
-        # 1. Ініціалізація інфраструктури
-        minio_adapter = MinioAdapter(
-            endpoint=Config.MINIO_ENDPOINT,
-            access_key=Config.MINIO_ACCESS_KEY,
-            secret_key=Config.MINIO_SECRET_KEY,
-            secure=Config.MINIO_SECURE
-        )
-
-        # 2. Створення сервісу
-        service = BronzeToSilverService(minio_adapter)
-
-        # 3. Виконання
+        print(f"🚀 Читаємо CSV: {local_file}...")
+        
+        # Виконуємо трансформацію та завантаження
         service.execute(
-            local_path='data/bronze/amazon_reviews.csv', 
-            bucket_name="silver", 
-            object_name="reviews.parquet"
+            local_path=local_file,
+            bucket_name="silver",
+            object_name="amazon_reviews.parquet"
         )
         
-        print(">>> ПРОЦЕС ЗАВЕРШЕНО УСПІШНО! <<<")
-
-    except ConnectionError as e:
-        print(f"[КРИТИЧНА ПОМИЛКА МЕРЕЖІ]: Не вдалося підключитися до MinIO. Перевір, чи запущено Docker-контейнер. \nДеталі: {e}")
-        sys.exit(1)
-        
-    except FileNotFoundError as e:
-        print(f"[ПОМИЛКА ДАНИХ]: Файл не знайдено за вказаним шляхом. \nДеталі: {e}")
-        sys.exit(1)
+        print("✅ Успішно! Parquet вже лежить у MinIO (бакет 'silver').")
 
     except Exception as e:
-        print(f"[НЕПЕРЕДБАЧУВАНА ПОМИЛКА]: Сталося щось дивне... \nТип помилки: {type(e).__name__} \nОпис: {e}")
-        sys.exit(1)
+        print(f"💥 Помилка: {e}")
 
 if __name__ == "__main__":
     main()

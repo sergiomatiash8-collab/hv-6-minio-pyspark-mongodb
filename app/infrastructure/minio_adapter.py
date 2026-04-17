@@ -14,11 +14,15 @@ class MinioAdapter:
         if not self.client.bucket_exists(bucket_name):
             self.client.make_bucket(bucket_name)
         
+        # Отримуємо розмір контенту перед завантаженням
+        content_size = len(data.getbuffer()) 
         data.seek(0)
+        
         res = self.client.put_object(
-            bucket_name,
-            object_name,
-            data,
-            len(data.getvalue())
+            bucket_name=bucket_name,
+            object_name=object_name,
+            data=data,
+            length=content_size, # Вказуємо точний розмір
+            content_type='application/octet-stream'
         )
         return res
