@@ -1,25 +1,69 @@
 global:
-  scrape_interval: 15s      # Як часто збирати метрики (дефолт — 15с)
-  evaluation_interval: 15s  # Як часто перевіряти правила алертингу
-
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'etl-pipeline-monitor'
+ 
+# Alertmanager configuration (опціонально)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+ 
 scrape_configs:
-  # 1. ETL Pipeline metrics (наш Python додаток)
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+ 
+  # ETL Pipeline metrics (з app на порту 8000)
   - job_name: 'etl-pipeline'
+    scrape_interval: 10s
     static_configs:
       - targets: ['app:8000']
-
-  # 2. Spark metrics (внутрішній стан Spark-сесії)
+        labels:
+          service: 'etl-pipeline'
+          env: 'dev'
+    # Якщо app не відповідає - не падай
+    metrics_path: '/metrics'
+    
+  # Spark UI metrics (якщо job запущений)
   - job_name: 'spark'
+    scrape_interval: 30s
     static_configs:
       - targets: ['spark:4040']
-
-  # 3. MinIO metrics (стан об'єктного сховища)
+        labels:
+          service: 'spark'
+    # Spark UI може бути недоступним коли job не запущений
+    metrics_path: '/metrics/prometheus'
+    
+  # MinIO metrics
   - job_name: 'minio'
-    metrics_path: /minio/v2/metrics/cluster
+    scrape_interval: 30s
+    metrics_path: '/minio/v2/metrics/cluster'
+    scheme: 'http'
     static_configs:
       - targets: ['minio:9000']
-
-  # 4. MongoDB metrics (стан бази через експортер)
+        labels:
+          service: 'minio'
+  
+  # MongoDB metrics (через exporter)
   - job_name: 'mongodb'
+    scrape_interval: 30s
     static_configs:
       - targets: ['mongodb-exporter:9216']
+        labels:
+          service: 'mongodb'
+  
+  # Node exporter (системні метрики)
+  - job_name: 'node-exporter'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'system'
+ 
+  # Docker container metrics (якщо встановлено cAdvisor)
+  # - job_name: 'cadvisor'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']

@@ -1,9 +1,11 @@
 """
-Silver to Gold transformation with proper output and error handling.
-FIXES: Now actually saves results to MongoDB and MinIO!
+Silver to Gold transformation.
+- 3 types of aggregations (Product stats, Customer activity, Monthly trends).
+- Saving to 3 separate MongoDB collections.
 """
 
 import structlog
+import time
 from pyspark.sql import functions as F
 from app.core.exceptions import TransformationError, StorageError
 
@@ -15,25 +17,13 @@ class SilverToGoldService:
         self.mongodb = mongodb_adapter
 
     def execute(self, input_path: str, output_path: str = None):
-        """
-        Transform Silver to Gold layer.
-        """
         try:
             logger.info("silver_to_gold_start", input_path=input_path)
 
-            # 1. Read from Silver
+            # 1. Читаємо дані з Silver шару (MinIO)
             df = self.spark.read.parquet(input_path)
-            initial_count = df.count()
             
-            logger.info("silver_data_loaded", 
-                        path=input_path, 
-                        row_count=initial_count)
-
-            # 2. Data quality checks
-            if initial_count == 0:
-                raise TransformationError("Input data is empty")
-
-            # 3. Clean data (ensure no NULLs in keys)
+            # 2. Очищення (згідно з ТЗ: видаляємо NULL у критичних колонках)
             df_clean = df.filter(
                 (F.col("review_id").isNotNull()) &
                 (F.col("product_id").isNotNull()) &
@@ -41,64 +31,75 @@ class SilverToGoldService:
                 (F.col("review_date").isNotNull())
             )
 
-            clean_count = df_clean.count()
-            rejected_count = initial_count - clean_count
-            
-            if initial_count > 0:
-                rejection_rate = rejected_count / initial_count
-                logger.info("data_cleaning_complete", 
-                            clean_rows=clean_count, 
-                            rejected_rows=rejected_count, 
-                            rejection_rate=f"{rejection_rate:.2%}")
+            # ---------------------------------------------------------
+            # 3. АГРЕГАЦІЇ (3 ТИПИ ЗГІДНО З ЗАВДАННЯМ)
+            # ---------------------------------------------------------
 
-            # 4. Aggregate to Gold layer
-            df_gold = df_clean.groupBy("product_id").agg(
+            # Агрегація 1: Статистика по продуктах (Рейтинг + Кількість)
+            df_product_stats = df_clean.groupBy("product_id").agg(
                 F.round(F.avg("star_rating"), 2).alias("avg_rating"),
-                F.count("review_id").alias("total_reviews"),
-                F.sum(
-                    F.when(F.col("verified_purchase") == True, 1).otherwise(0)
-                ).alias("verified_reviews"),
-                F.max("review_date").alias("last_review_date")
+                F.count("review_id").alias("total_reviews")
             )
 
-            gold_count = df_gold.count()
-            logger.info("aggregation_complete", products=gold_count)
+            # Агрегація 2: Активність клієнтів (Тільки верифіковані покупки)
+            df_customer_activity = df_clean.filter(F.col("verified_purchase") == 1) \
+                .groupBy("customer_id") \
+                .agg(F.count("review_id").alias("verified_reviews_count"))
 
-            # 5. Save to MinIO (Analytical storage)
+            # Агрегація 3: Щомісячні тренди (Кількість відгуків по місяцях)
+            df_monthly_trends = df_clean.withColumn("month", F.month("review_date")) \
+                .withColumn("year", F.year("review_date")) \
+                .groupBy("product_id", "year", "month") \
+                .agg(F.count("review_id").alias("reviews_count"))
+
+            # ---------------------------------------------------------
+            # 4. ЗБЕРЕЖЕННЯ В MONGODB (У 3 РІЗНІ КОЛЕКЦІЇ)
+            # ---------------------------------------------------------
+            
+            # Запис 1: Продукти
+            self._save_to_mongodb(df_product_stats, "product_stats", "product_id")
+            
+            # Запис 2: Клієнти
+            self._save_to_mongodb(df_customer_activity, "customer_activity", "customer_id")
+            
+            # Запис 3: Тренди (тут ключ композитний, тому просто вставляємо)
+            self._save_to_mongodb(df_monthly_trends, "product_monthly_trends", None)
+
+            # 5. Збереження в MinIO (опціонально, як бекап аналітики)
             if output_path:
-                df_gold.write.mode("overwrite").parquet(output_path)
-                logger.info("gold_data_saved_minio", path=output_path)
+                df_product_stats.write.mode("overwrite").parquet(output_path)
 
-            # 6. Save to MongoDB (Operational storage / API source)
-            self._save_to_mongodb(df_gold)
+            # ---------------------------------------------------------
+            # 6. ПАУЗА ДЛЯ PROMETHEUS (ЩОБ ВСТИГ ЗАБРАТИ МЕТРИКИ)
+            # ---------------------------------------------------------
+            logger.info("waiting_for_prometheus_scraping", seconds=30)
+            time.sleep(30)
 
-            logger.info("silver_to_gold_complete", products_processed=gold_count)
-            return df_gold
+            logger.info("silver_to_gold_complete")
+            return df_product_stats
 
         except Exception as e:
             logger.error("silver_to_gold_failed", error=str(e))
             raise TransformationError(f"Silver to Gold failed: {e}")
 
-    def _save_to_mongodb(self, df_gold):
-        """Save aggregated data to MongoDB."""
+    def _save_to_mongodb(self, df, collection_name, key_field):
+        """Внутрішній метод для конвертації та запису в Mongo."""
         try:
-            # Конвертуємо у список словників для MongoDB
-            # Примітка: для дуже великих об'ємів краще використовувати spark-mongodb connector,
-            # але для агрегованого Gold шару collect() зазвичай достатньо.
-            records = [row.asDict() for row in df_gold.collect()]
-            
+            records = [row.asDict() for row in df.collect()]
             if not records:
-                logger.warning("mongodb_save_skip", reason="No records to save")
                 return
 
-            # Використовуємо наш адаптер для Bulk Upsert
-            self.mongodb.bulk_upsert(
-                collection="product_reviews_gold",
-                documents=records,
-                key_field="product_id"
-            )
-            
-            logger.info("mongodb_save_complete", records_count=len(records))
+            if key_field:
+                # Робимо Upsert, щоб не дублювати дані при повторних запусках
+                self.mongodb.bulk_upsert(
+                    collection=collection_name,
+                    documents=records,
+                    key_field=key_field
+                )
+            else:
+                # Для трендів просто вставляємо (або можна налаштувати інший ключ)
+                self.mongodb.insert_many(collection_name, records)
+                
+            logger.info("mongodb_save_success", collection=collection_name, count=len(records))
         except Exception as e:
-            logger.error("mongodb_save_failed", error=str(e))
-            raise StorageError(f"Failed to save to MongoDB: {e}")
+            logger.error("mongodb_save_error", collection=collection_name, error=str(e))

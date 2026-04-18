@@ -1,8 +1,9 @@
 auth_enabled: false
-
+ 
 server:
   http_listen_port: 3100
-
+  grpc_listen_port: 9096
+ 
 common:
   path_prefix: /loki
   storage:
@@ -14,7 +15,7 @@ common:
     instance_addr: 127.0.0.1
     kvstore:
       store: inmemory
-
+ 
 schema_config:
   configs:
     - from: 2020-10-24
@@ -24,3 +25,9 @@ schema_config:
       index:
         prefix: index_
         period: 24h
+ 
+ruler:
+  alertmanager_url: http://localhost:9093
+ 
+limits_config:
+  retention_period: 168h  # 7 days
