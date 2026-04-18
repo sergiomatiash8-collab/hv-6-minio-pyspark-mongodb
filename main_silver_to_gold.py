@@ -32,7 +32,7 @@ def main():
     logger.info("silver_to_gold_job_start")
     start_time = time.time()
 
-    # Запуск сервера метрик
+    # Start metrics server
     try:
         start_http_server(8000, addr='0.0.0.0')
         logger.info("metrics_server_started", port=8000, host='0.0.0.0')
@@ -79,7 +79,7 @@ def main():
         raise
 
     finally:
-        # Важливо: даємо час закрити всі з'єднання
+        # Important: allow time to close all connections
         logger.info("cleaning_up_resources")
         if mongodb:
             mongodb.close()
@@ -87,7 +87,7 @@ def main():
             spark.stop()
             logger.info("spark_session_stopped")
         
-        # Залишаємо сервер метрик живим ще трохи, щоб Prometheus встиг зняти останні дані
+        # Keep metrics server alive briefly so Prometheus can scrape final data
         time.sleep(10)
 
 if __name__ == "__main__":

@@ -4,7 +4,8 @@ from app.infrastructure.minio_adapter import MinioAdapter
 from app.use_cases.bronze_to_silver import BronzeToSilverService
 
 def main():
-    # 1. Підключаємось до MinIO
+    
+    # Initialize MinIO adapter with configuration settings
     adapter = MinioAdapter(
         endpoint=Config.MINIO_ENDPOINT,
         access_key=Config.MINIO_ACCESS_KEY,
@@ -12,30 +13,32 @@ def main():
         secure=Config.MINIO_SECURE
     )
 
+    # Initialize the processing service
     service = BronzeToSilverService(adapter)
 
-    # 2. Шлях саме до твого файлу (згідно зі скріншотом)
+    # Path to the local bronze data file
     local_file = "data/bronze/amazon_reviews.csv" 
     
+    # Check if the source file exists before processing
     if not os.path.exists(local_file):
-        print(f"❌ Помилка: Не бачу файл за шляхом {local_file}")
-        print("Перевір, чи ти запустив термінал саме в папці проєкту.")
+        print(f"Error: File not found at path {local_file}")
+        print("Please verify if the terminal is running in the project root directory.")
         return
 
     try:
-        print(f"🚀 Читаємо CSV: {local_file}...")
+        print(f"Reading CSV file: {local_file}...")
         
-        # Виконуємо трансформацію та завантаження
+        # Execute transformation and upload to MinIO
         service.execute(
             local_path=local_file,
             bucket_name="silver",
             object_name="amazon_reviews.parquet"
         )
         
-        print("✅ Успішно! Parquet вже лежить у MinIO (бакет 'silver').")
+        print("Success: Parquet file has been uploaded to MinIO (bucket 'silver').")
 
     except Exception as e:
-        print(f"💥 Помилка: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     main()
