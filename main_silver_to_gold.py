@@ -1,6 +1,6 @@
 """
 Main entry point for Silver to Gold transformation.
-FIXES: Proper logging, MongoDB integration, metrics.
+FIXES: Increased wait time for metrics and graceful shutdown.
 """
 
 import time
@@ -32,7 +32,7 @@ def main():
     logger.info("silver_to_gold_job_start")
     start_time = time.time()
 
-    # КРОК 1: Запуск сервера метрик на 0.0.0.0 (важливо для Docker)
+    # Запуск сервера метрик
     try:
         start_http_server(8000, addr='0.0.0.0')
         logger.info("metrics_server_started", port=8000, host='0.0.0.0')
@@ -43,7 +43,7 @@ def main():
     mongodb = None
 
     try:
-        # 1. Initialize Spark (використовує наш SparkManager з фіксами)
+        # 1. Initialize Spark
         spark = SparkManager.get_session("SilverToGoldApp", Config)
 
         # 2. Initialize MongoDB
@@ -56,7 +56,6 @@ def main():
         service = SilverToGoldService(spark, mongodb)
 
         # 4. Execute transformation
-        # Переконайся, що бакет 'gold' створено в MinIO!
         service.execute(
             input_path="s3a://silver/amazon_reviews.parquet", 
             output_path="s3a://gold/product_analytics.parquet"
@@ -75,20 +74,21 @@ def main():
         JOB_DURATION.labels(layer='silver_to_gold').observe(duration)
         
         logger.error("silver_to_gold_job_failed", 
-                     error=str(e), 
-                     duration_seconds=round(duration, 2))
+                      error=str(e), 
+                      duration_seconds=round(duration, 2))
         raise
 
     finally:
-        # Cleanup
+        # Важливо: даємо час закрити всі з'єднання
+        logger.info("cleaning_up_resources")
         if mongodb:
             mongodb.close()
         if spark:
             spark.stop()
             logger.info("spark_session_stopped")
         
-        # Даємо час Prometheus зняти фінальні метрики перед виходом
-        time.sleep(5)
+        # Залишаємо сервер метрик живим ще трохи, щоб Prometheus встиг зняти останні дані
+        time.sleep(10)
 
 if __name__ == "__main__":
     main()

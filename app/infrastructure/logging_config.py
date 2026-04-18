@@ -10,7 +10,7 @@ import sys
 def configure_logging(log_level: str = "INFO"):
     """Configure structured logging for the application."""
     
-    # Базова конфігурація стандартного logging для перехоплення системних повідомлень
+    
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,

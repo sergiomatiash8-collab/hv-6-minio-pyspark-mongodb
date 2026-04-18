@@ -50,7 +50,7 @@ def spark_session(minio_container):
 def test_full_pipeline(spark_session, minio_container, mongodb_container):
     """Test complete Bronze -> Silver -> Gold pipeline."""
     
-    # 0. Setup adapters and buckets
+    
     endpoint = f"{minio_container.get_container_host_ip()}:{minio_container.get_exposed_port(9000)}"
     minio_adapter = MinioAdapter(
         endpoint=endpoint,
@@ -59,12 +59,12 @@ def test_full_pipeline(spark_session, minio_container, mongodb_container):
         secure=False
     )
     
-    # Створюємо бакети, які очікує пайплайн
+    
     for bucket in ["silver", "gold"]:
         if not minio_adapter.client.bucket_exists(bucket):
             minio_adapter.client.make_bucket(bucket)
 
-    # 1. Create test data (Pandas -> Parquet)
+    
     test_data = pd.DataFrame({
         'review_id': ['R1', 'R2', 'R3'],
         'product_id': ['P1', 'P1', 'P2'],
@@ -74,7 +74,7 @@ def test_full_pipeline(spark_session, minio_container, mongodb_container):
         'customer_id': ['C1', 'C2', 'C3']
     })
 
-    # Конвертуємо в Parquet і завантажуємо в "Silver" для тесту SilverToGold
+    
     parquet_buffer = io.BytesIO()
     test_data.to_parquet(parquet_buffer, index=False)
     parquet_buffer.seek(0)
@@ -85,7 +85,7 @@ def test_full_pipeline(spark_session, minio_container, mongodb_container):
         data=parquet_buffer
     )
 
-    # 2. Process Silver -> Gold
+    
     mongodb_adapter = MongoDBAdapter(
         connection_string=mongodb_container.get_connection_url(),
         database="test_db"
@@ -97,14 +97,14 @@ def test_full_pipeline(spark_session, minio_container, mongodb_container):
         output_path="s3a://gold/test_product_reviews.parquet"
     )
 
-    # 3. Verify Spark Results
+    
     assert df_gold.count() == 2  # P1 та P2
     
     p1_results = df_gold.filter(F.col("product_id") == "P1").collect()[0]
     assert p1_results["total_reviews"] == 2
     assert float(p1_results["avg_rating"]) == 4.5
 
-    # 4. Verify MongoDB Data
+    
     client = MongoClient(mongodb_container.get_connection_url())
     db = client['test_db']
     mongo_results = list(db['product_reviews_gold'].find())

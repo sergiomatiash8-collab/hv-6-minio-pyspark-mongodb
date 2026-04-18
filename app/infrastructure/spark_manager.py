@@ -18,13 +18,13 @@ class SparkManager:
             conf = SparkConf()
             conf.setAll([
                 ("spark.app.name", app_name),
-                # Використовуємо перевірені версії для PySpark 3.4.1
+                
                 ("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262"),
                 ("spark.driver.memory", "2g"),
                 ("spark.executor.memory", "2g"),
                 ("spark.sql.adaptive.enabled", "true"),
                 
-                # S3A / MinIO Налаштування
+                
                 ("spark.hadoop.fs.s3a.endpoint", f"http://{config.MINIO_ENDPOINT}"),
                 ("spark.hadoop.fs.s3a.access.key", config.MINIO_ACCESS_KEY),
                 ("spark.hadoop.fs.s3a.secret.key", config.MINIO_SECRET_KEY),
@@ -32,11 +32,11 @@ class SparkManager:
                 ("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"),
                 ("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"),
                 
-                # КРИТИЧНІ ПАРАМЕТРИ ДЛЯ DOCKER
+                
                 ("spark.hadoop.fs.s3a.connection.ssl.enabled", "false"),
                 ("spark.hadoop.fs.s3a.endpoint.region", "us-east-1"),
                 
-                # Таймаути та спроби
+                
                 ("spark.hadoop.fs.s3a.connection.establish.timeout", "10000"),
                 ("spark.hadoop.fs.s3a.connection.timeout", "10000"),
                 ("spark.hadoop.fs.s3a.attempts.maximum", "3")
@@ -44,7 +44,7 @@ class SparkManager:
 
             spark = SparkSession.builder.config(conf=conf).getOrCreate()
 
-            # Валідація з'єднання
+            
             SparkManager._validate_s3_connection(spark)
 
             logger.info("spark_session_init_success", 
@@ -61,7 +61,7 @@ class SparkManager:
         """Test S3/MinIO connectivity before proceeding."""
         try:
             sc = spark.sparkContext
-            # Перевіряємо шлях silver, який вже має існувати
+            
             path = sc._gateway.jvm.org.apache.hadoop.fs.Path("s3a://silver/")
             fs = sc._gateway.jvm.org.apache.hadoop.fs.FileSystem.get(
                 path.toUri(), 

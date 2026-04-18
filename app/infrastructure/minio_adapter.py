@@ -14,7 +14,7 @@ class MinioAdapter:
         if not self.client.bucket_exists(bucket_name):
             self.client.make_bucket(bucket_name)
         
-        # Отримуємо розмір контенту перед завантаженням
+        
         content_size = len(data.getbuffer()) 
         data.seek(0)
         
