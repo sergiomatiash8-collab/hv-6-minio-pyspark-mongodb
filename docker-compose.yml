@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   minio:
     image: minio/minio:latest
@@ -7,7 +9,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_PROMETHEUS_AUTH_TYPE: "public"  # Дозволити Prometheus без auth
+      MINIO_PROMETHEUS_AUTH_TYPE: "public"
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -18,7 +20,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
- 
+
   mongodb:
     image: mongo:latest
     ports:
@@ -35,8 +37,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
- 
-  # MongoDB exporter для Prometheus
+
   mongodb-exporter:
     image: percona/mongodb_exporter:0.40
     ports:
@@ -47,14 +48,14 @@ services:
       - spark-network
     depends_on:
       - mongodb
- 
+
   spark:
     image: jupyter/pyspark-notebook:latest
     environment:
       JUPYTER_ENABLE_LAB: "yes"
     ports:
       - "8888:8888"
-      - "4040:4040"  # Spark UI (для Prometheus scraping)
+      - "4040:4040"
     volumes:
       - ./data:/data
       - ./etl:/etl
@@ -64,12 +65,12 @@ services:
       - minio
       - mongodb
     command: sleep infinity
- 
-  # Твій ETL додаток
+
   app:
     build: .
+    working_dir: /app
     ports:
-      - "8000:8000"  # ⚠️ КРИТИЧНО: Prometheus metrics endpoint!
+      - "8000:8000"
     volumes:
       - .:/app
     environment:
@@ -83,13 +84,11 @@ services:
     depends_on:
       - minio
       - mongodb
-    # Не запускаємо автоматично, щоб можна було запускати вручну
-    # command: python main_silver_to_gold.py
- 
+
 volumes:
   minio_data:
   mongodb_data:
- 
+
 networks:
   spark-network:
     driver: bridge

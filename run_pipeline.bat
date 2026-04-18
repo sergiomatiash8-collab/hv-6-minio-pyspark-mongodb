@@ -1,25 +1,25 @@
 @echo off
 setlocal
 echo ==================================================
-echo   AMAZON REVIEWS PIPELINE AUTO-LAUNCHER
+echo   AMAZON REVIEWS PIPELINE: STEP-BY-STEP
 echo ==================================================
 
-:: 1. ПІДЙОМ ВСІЄЇ ІНФРАСТРУКТУРИ
-echo [1/4] Starting all services from docker-compose...
-:: Команда 'up -d' без уточнення імен підніме ВСЕ, що описано в yaml файлі
-docker-compose up -d
+:: 1. ПІДЙОМ КОНТЕЙНЕРІВ
+echo [1/4] Starting Infrastructure...
+docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
-echo Waiting for services to stabilize (20s)...
+echo Waiting for services to start (20s)...
 timeout /t 20 /nobreak > NUL
 
-:: 2. ЗАПУСК ЕТАПІВ
-echo [2/4] Running Initial Data Ingestion...
-docker-compose run --rm app python app/main_bronze_to_silver.py
+:: 2. КРОК 1: BRONZE -> SILVER (Наповнюємо MinIO)
+echo [2/4] Step 1: Loading data into MinIO (Silver)...
+docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml run --rm app python main_bronze_to_silver.py
 
-echo [3/4] Running Analytics Processing...
-docker-compose run --rm app python app/main_silver_to_gold.py
+:: 3. КРОК 2: SILVER -> GOLD (Аналітика в MongoDB)
+echo [3/4] Step 2: Processing data to MongoDB (Gold)...
+docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml run --rm app python main_silver_to_gold.py
 
 echo ==================================================
-echo   PIPELINE FINISHED!
+echo   SUCCESS: Pipeline completed!
 echo ==================================================
 pause
